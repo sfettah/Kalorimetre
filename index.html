@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KaloriTakip - Günlük Kalori ve Su Takibi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 99px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+        .page-section { display: none; }
+        .page-section.active { display: block; }
+        #sidebar { transition: transform 0.3s ease; }
+        
+        /* Mobile Bottom Sheet Style for Modals */
+        @media (max-width: 768px) {
+            .modal-content {
+                margin-top: auto;
+                border-bottom-left-radius: 0;
+                border-bottom-right-radius: 0;
+                transform: translateY(100%);
+                transition: transform 0.3s ease-out;
+            }
+            #add-food-modal:not(.hidden) .modal-content {
+                transform: translateY(0);
+            }
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0', 300: '#86efac',
+                            400: '#4ade80', 500: '#22c55e', 600: '#16a34a', 700: '#15803d',
+                            800: '#166534', 900: '#14532d',
+                        },
+                        secondary: {
+                            50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 300: '#7dd3fc',
+                            400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1',
+                            800: '#075985', 900: '#0c4a6e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-50 text-slate-900 antialiased">
+    <div id="app" class="flex min-h-screen pb-20 lg:pb-0">
+        <!-- Sidebar (Desktop Only) -->
+        <aside id="sidebar" class="hidden lg:flex sticky top-0 h-screen w-72 bg-white border-r border-slate-200 z-50 flex-col shrink-0">
+            <div class="p-8 flex items-center gap-3 cursor-pointer" onclick="navigateTo('dashboard')">
+                <div class="w-10 h-10 bg-primary-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-primary-500/30">
+                    <i data-lucide="utensils"></i>
+                </div>
+                <span class="text-xl font-black tracking-tight text-slate-800">KaloriTakip</span>
+            </div>
+
+            <nav class="flex-1 px-4 py-4 space-y-1">
+                <button onclick="navigateTo('dashboard')" id="nav-dashboard" class="nav-link flex items-center justify-between w-full px-4 py-3 rounded-xl transition-all duration-200 group text-slate-500 hover:bg-slate-50 hover:text-slate-900">
+                    <div class="flex items-center gap-3">
+                        <i data-lucide="layout-dashboard"></i>
+                        <span>Ana Sayfa</span>
+                    </div>
+                </button>
+                <button onclick="navigateTo('foods')" id="nav-foods" class="nav-link flex items-center justify-between w-full px-4 py-3 rounded-xl transition-all duration-200 group text-slate-500 hover:bg-slate-50 hover:text-slate-900">
+                    <div class="flex items-center gap-3">
+                        <i data-lucide="utensils"></i>
+                        <span>Yemekler</span>
+                    </div>
+                </button>
+                <button onclick="navigateTo('history')" id="nav-history" class="nav-link flex items-center justify-between w-full px-4 py-3 rounded-xl transition-all duration-200 group text-slate-500 hover:bg-slate-50 hover:text-slate-900">
+                    <div class="flex items-center gap-3">
+                        <i data-lucide="history"></i>
+                        <span>Geçmiş</span>
+                    </div>
+                </button>
+                <button onclick="navigateTo('water')" id="nav-water" class="nav-link flex items-center justify-between w-full px-4 py-3 rounded-xl transition-all duration-200 group text-slate-500 hover:bg-slate-50 hover:text-slate-900">
+                    <div class="flex items-center gap-3">
+                        <i data-lucide="droplets"></i>
+                        <span>Su Takibi</span>
+                    </div>
+                </button>
+                <button onclick="navigateTo('settings')" id="nav-settings" class="nav-link flex items-center justify-between w-full px-4 py-3 rounded-xl transition-all duration-200 group text-slate-500 hover:bg-slate-50 hover:text-slate-900">
+                    <div class="flex items-center gap-3">
+                        <i data-lucide="settings"></i>
+                        <span>Ayarlar</span>
+                    </div>
+                </button>
+            </nav>
+
+            <div class="p-6 border-t border-slate-100">
+                <div class="bg-slate-50 rounded-2xl p-4">
+                    <p class="text-xs text-slate-500 leading-relaxed">
+                        Kalori değerleri güvenilir beslenme veri tabanlarından alınmıştır.
+                    </p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Bottom Navigation (Mobile Only) -->
+        <nav class="lg:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-slate-100 z-[60] px-2 py-2 flex items-center justify-around shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+            <button onclick="navigateTo('dashboard')" id="mobile-nav-dashboard" class="mobile-nav-link flex flex-col items-center gap-1 p-2 rounded-2xl transition-all text-slate-400">
+                <i data-lucide="layout-dashboard" class="w-6 h-6"></i>
+                <span class="text-[10px] font-bold uppercase tracking-tighter">Ana Sayfa</span>
+            </button>
+            <button onclick="navigateTo('foods')" id="mobile-nav-foods" class="mobile-nav-link flex flex-col items-center gap-1 p-2 rounded-2xl transition-all text-slate-400">
+                <i data-lucide="utensils" class="w-6 h-6"></i>
+                <span class="text-[10px] font-bold uppercase tracking-tighter">Yemekler</span>
+            </button>
+            
+            <!-- FAB Placeholder -->
+            <div class="w-12"></div>
+
+            <button onclick="navigateTo('history')" id="mobile-nav-history" class="mobile-nav-link flex flex-col items-center gap-1 p-2 rounded-2xl transition-all text-slate-400">
+                <i data-lucide="history" class="w-6 h-6"></i>
+                <span class="text-[10px] font-bold uppercase tracking-tighter">Geçmiş</span>
+            </button>
+            <button onclick="navigateTo('settings')" id="mobile-nav-settings" class="mobile-nav-link flex flex-col items-center gap-1 p-2 rounded-2xl transition-all text-slate-400">
+                <i data-lucide="settings" class="w-6 h-6"></i>
+                <span class="text-[10px] font-bold uppercase tracking-tighter">Ayarlar</span>
+            </button>
+        </nav>
+
+        <!-- Floating Action Button (Mobile Only) -->
+        <button onclick="openAddFoodModal()" class="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-14 h-14 bg-primary-500 text-white rounded-full shadow-xl shadow-primary-500/40 z-[70] flex items-center justify-center active:scale-90 transition-transform">
+            <i data-lucide="plus" class="w-8 h-8"></i>
+        </button>
+
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col min-w-0 bg-slate-50">
+            <!-- Header -->
+            <header class="sticky top-0 z-30 w-full bg-white/80 backdrop-blur-md border-b border-slate-100 px-4 lg:px-12 py-3 lg:py-6">
+                <div class="flex items-center justify-between max-w-6xl mx-auto">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-primary-500 rounded-xl flex lg:hidden items-center justify-center text-white shadow-lg shadow-primary-500/30">
+                            <i data-lucide="utensils" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-lg lg:text-2xl font-black text-slate-900 leading-tight">Selam, <span id="user-name-display">Kullanıcı</span>!</h1>
+                            <p class="text-[10px] lg:text-xs font-bold text-slate-400 uppercase tracking-widest">Bugün harika bir gün</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 lg:gap-4">
+                        <button onclick="navigateTo('water')" class="p-2.5 text-secondary-500 hover:bg-secondary-50 rounded-xl transition-all relative lg:hidden">
+                            <i data-lucide="droplets" class="w-5 h-5"></i>
+                        </button>
+                        <button class="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-all relative">
+                            <i data-lucide="bell" class="w-5 h-5 lg:w-6 lg:h-6"></i>
+                            <span class="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+                        </button>
+                        <button onclick="navigateTo('settings')" class="hidden lg:flex p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-all">
+                            <i data-lucide="settings" class="w-6 h-6"></i>
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <div class="flex-1 p-4 lg:p-12 max-w-6xl mx-auto w-full">
+                <!-- Dashboard Section -->
+                <section id="dashboard-section" class="page-section space-y-6 lg:space-y-8 pb-12 active">
+                    <div class="relative overflow-hidden bg-white rounded-[1.5rem] lg:rounded-[2rem] p-5 lg:p-8 border border-slate-100 shadow-sm">
+                        <div class="absolute top-0 right-0 w-48 h-48 bg-primary-500/5 blur-[60px] rounded-full -mr-24 -mt-24"></div>
+                        <div class="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6">
+                            <div class="flex-1 space-y-2 lg:space-y-4 text-center sm:text-left">
+                                <div class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-primary-50 rounded-full text-primary-600 text-[10px] font-bold uppercase tracking-wider">
+                                    <i data-lucide="sparkles" class="w-3 h-3"></i>
+                                    <span>Günlük Özet</span>
+                                </div>
+                                <h2 class="text-xl lg:text-3xl font-black text-slate-900 leading-tight">
+                                    Selam <span id="hero-name" class="text-primary-600">Kullanıcı</span>
+                                </h2>
+                                <p class="text-slate-500 text-xs lg:text-sm font-medium">
+                                    Hedef: <span id="hero-goal" class="text-slate-900 font-bold">2000</span> kcal
+                                </p>
+                                <div id="next-water-alarm-container" class="hidden items-center gap-2 text-secondary-600 bg-secondary-50/50 px-3 py-1.5 rounded-lg w-fit mx-auto sm:mx-0 border border-secondary-100/50">
+                                    <i data-lucide="bell" class="w-3.5 h-3.5 animate-pulse"></i>
+                                    <span class="text-[10px] lg:text-xs font-bold">Su Alarmı: <span id="next-water-alarm-time">--:--</span></span>
+                                </div>
+                            </div>
+                            <div class="relative flex items-center justify-center w-32 h-32 lg:w-44 lg:h-44 shrink-0">
+                                <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                                    <circle cx="50" cy="50" r="42" stroke="currentColor" stroke-width="8" fill="transparent" class="text-slate-50"></circle>
+                                    <circle id="calorie-progress-circle" cx="50" cy="50" r="42" stroke="currentColor" stroke-width="8" fill="transparent" stroke-dasharray="263.9" stroke-dashoffset="263.9" stroke-linecap="round" class="text-primary-500 transition-all duration-1000"></circle>
+                                </svg>
+                                <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
+                                    <span id="calories-remaining" class="text-xl lg:text-3xl font-black text-slate-900">2000</span>
+                                    <span class="text-[7px] lg:text-[9px] font-bold text-slate-400 uppercase tracking-widest">KALAN</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+                        <div class="bg-white p-4 lg:p-8 rounded-[1.5rem] lg:rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col lg:flex-row items-center lg:items-center gap-3 lg:gap-6 text-center lg:text-left">
+                            <div class="w-12 h-12 lg:w-16 lg:h-16 bg-primary-50 rounded-xl lg:rounded-2xl flex items-center justify-center text-primary-500">
+                                <i data-lucide="flame" class="w-6 h-6 lg:w-8 lg:h-8"></i>
+                            </div>
+                            <div>
+                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5 lg:mb-1">Alınan</p>
+                                <p class="text-lg lg:text-2xl font-black text-slate-900"><span id="calories-taken">0</span> kcal</p>
+                            </div>
+                        </div>
+                        <div class="bg-white p-4 lg:p-8 rounded-[1.5rem] lg:rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col lg:flex-row items-center lg:items-center gap-3 lg:gap-6 text-center lg:text-left">
+                            <div class="w-12 h-12 lg:w-16 lg:h-16 bg-secondary-50 rounded-xl lg:rounded-2xl flex items-center justify-center text-secondary-500">
+                                <i data-lucide="droplets" class="w-6 h-6 lg:w-8 lg:h-8"></i>
+                            </div>
+                            <div>
+                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5 lg:mb-1">Su</p>
+                                <p class="text-lg lg:text-2xl font-black text-slate-900"><span id="water-taken">0</span> ml</p>
+                            </div>
+                        </div>
+                        <div class="col-span-2 lg:col-span-1 bg-white p-4 lg:p-8 rounded-[1.5rem] lg:rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center justify-center lg:justify-start gap-4 lg:gap-6">
+                            <div class="w-12 h-12 lg:w-16 lg:h-16 bg-amber-50 rounded-xl lg:rounded-2xl flex items-center justify-center text-amber-500">
+                                <i data-lucide="target" class="w-6 h-6 lg:w-8 lg:h-8"></i>
+                            </div>
+                            <div class="text-left">
+                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5 lg:mb-1">Günlük Hedef</p>
+                                <p class="text-lg lg:text-2xl font-black text-slate-900"><span id="calorie-goal-display">2000</span> kcal</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-[2rem] lg:rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
+                        <div class="p-6 lg:p-8 border-b border-slate-100 flex items-center justify-between">
+                            <h3 class="text-lg lg:text-xl font-black text-slate-900">Bugünkü Yemekler</h3>
+                            <button onclick="navigateTo('foods')" class="text-xs lg:text-sm font-bold text-primary-600 hover:text-primary-700">Tümünü Gör</button>
+                        </div>
+                        <div id="today-food-list" class="divide-y divide-slate-50"></div>
+                    </div>
+                </section>
+
+                <!-- Foods Section -->
+                <section id="foods-section" class="page-section space-y-6 lg:space-y-10 pb-12">
+                    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                        <div>
+                            <h2 class="text-3xl lg:text-5xl font-black text-slate-900">Yemek Veritabanı</h2>
+                            <p class="text-slate-500 mt-2 text-sm lg:text-base">Binlerce yemek arasından seçim yap veya kendi yemeğini ekle.</p>
+                        </div>
+                        <button onclick="openAddFoodModal()" class="px-6 lg:px-8 py-3 lg:py-4 bg-primary-500 hover:bg-primary-600 text-white font-bold rounded-2xl shadow-lg shadow-primary-500/30 transition-all flex items-center gap-2 self-start lg:self-center">
+                            <i data-lucide="plus"></i>
+                            Yeni Yemek Ekle
+                        </button>
+                    </div>
+
+                    <div class="flex flex-col lg:flex-row gap-4">
+                        <div class="flex-1 relative group">
+                            <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary-500 transition-colors"></i>
+                            <input type="text" id="food-search" oninput="renderFoodList()" placeholder="Yemek ara..." class="w-full pl-12 pr-4 py-3.5 lg:py-4 bg-white border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all shadow-sm">
+                        </div>
+                        <select id="food-category-filter" onchange="renderFoodList()" class="px-6 py-3.5 lg:py-4 bg-white border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all shadow-sm font-bold text-slate-600">
+                            <option value="all">Tüm Kategoriler</option>
+                            <option value="Ana Yemekler">Ana Yemekler</option>
+                            <option value="Kahvaltılık">Kahvaltılık</option>
+                            <option value="Meyveler">Meyveler</option>
+                            <option value="Sebzeler">Sebzeler</option>
+                            <option value="İçecekler">İçecekler</option>
+                            <option value="Tatlılar">Tatlılar</option>
+                            <option value="Atıştırmalık">Atıştırmalık</option>
+                            <option value="Yağlar & Soslar">Yağlar & Soslar</option>
+                        </select>
+                    </div>
+
+                    <div class="bg-white rounded-[2rem] lg:rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
+                        <!-- Desktop Table View -->
+                        <div class="hidden lg:block overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-50/50 border-b border-slate-100">
+                                        <th class="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Yemek Adı</th>
+                                        <th class="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Kategori</th>
+                                        <th class="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Kalori (100g)</th>
+                                        <th class="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">İşlemler</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="food-database-list-desktop" class="divide-y divide-slate-50"></tbody>
+                            </table>
+                        </div>
+                        <!-- Mobile Card View -->
+                        <div id="food-database-list-mobile" class="lg:hidden divide-y divide-slate-50"></div>
+                    </div>
+                </section>
+
+                <!-- History Section -->
+                <section id="history-section" class="page-section space-y-8 pb-12">
+                    <div>
+                        <h2 class="text-4xl font-black text-slate-900">Geçmiş Analizi</h2>
+                        <p class="text-slate-500 mt-2">Beslenme alışkanlıklarını ve ilerlemeni takip et.</p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Ortalama Kalori</p>
+                            <p class="text-3xl font-black text-slate-900"><span id="avg-calories">0</span> kcal</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Hedef Başarısı</p>
+                            <p class="text-3xl font-black text-slate-900"><span id="goal-success">0 / 0</span> Gün</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Toplam Kayıt</p>
+                            <p class="text-3xl font-black text-slate-900"><span id="total-records">0</span> Gün</p>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 lg:p-8 rounded-[2rem] lg:rounded-[2.5rem] border border-slate-100 shadow-sm h-[300px] lg:h-[400px]">
+                        <canvas id="historyChart"></canvas>
+                    </div>
+                </section>
+
+                <!-- Water Section -->
+                <section id="water-section" class="page-section space-y-6 lg:space-y-8 pb-12">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-3xl lg:text-4xl font-black text-slate-900">Su Takibi</h2>
+                            <p class="text-slate-500 mt-1 text-sm">Vücudunun ihtiyacı olan suyu içmeyi unutma.</p>
+                        </div>
+                        <button onclick="calculateWaterAlarms(); updateUI();" class="p-3 bg-secondary-50 text-secondary-600 rounded-xl hover:bg-secondary-100 transition-all" title="Planı Yenile">
+                            <i data-lucide="refresh-cw" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+                        <div class="bg-white p-6 lg:p-10 rounded-[2rem] lg:rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col items-center justify-center space-y-6">
+                            <div class="relative w-48 h-64 lg:w-56 lg:h-72 bg-slate-50 rounded-[2.5rem] border-2 border-slate-100 overflow-hidden shadow-inner">
+                                <div id="water-wave" class="absolute bottom-0 left-0 right-0 bg-secondary-400/80 transition-all duration-1000" style="height: 0%;">
+                                    <div class="absolute top-0 left-0 right-0 h-6 -mt-3">
+                                        <svg class="w-full h-full" viewBox="0 0 100 20" preserveAspectRatio="none">
+                                            <path d="M0 10 Q25 0 50 10 T100 10 V20 H0 Z" fill="currentColor" class="text-secondary-400 opacity-30"></path>
+                                            <path d="M0 10 Q25 20 50 10 T100 10 V20 H0 Z" fill="currentColor" class="text-secondary-400 opacity-60"></path>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div class="absolute inset-0 flex flex-col items-center justify-center z-10">
+                                    <span id="water-percentage" class="text-4xl lg:text-5xl font-black text-slate-900 drop-shadow-sm">0%</span>
+                                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">İçildi</span>
+                                </div>
+                            </div>
+                            <div class="text-center space-y-1">
+                                <p class="text-3xl lg:text-4xl font-black text-slate-900"><span id="water-intake-display">0</span> <span class="text-lg font-bold text-slate-400">ml</span></p>
+                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">HEDEF: <span id="water-goal-display">2000</span> ml</p>
+                            </div>
+                        </div>
+                        <div class="space-y-6">
+                            <div class="grid grid-cols-2 gap-3 lg:gap-4">
+                                <button onclick="addWater(200)" class="p-4 lg:p-6 bg-secondary-50 hover:bg-secondary-100 rounded-2xl lg:rounded-3xl transition-all group border border-secondary-100/50">
+                                    <div class="w-10 h-10 lg:w-12 lg:h-12 bg-white rounded-xl lg:rounded-2xl flex items-center justify-center text-secondary-500 shadow-sm mx-auto mb-2 lg:mb-3 group-hover:scale-110 transition-transform">
+                                        <i data-lucide="cup-soda" class="w-5 h-5 lg:w-6 lg:h-6"></i>
+                                    </div>
+                                    <span class="text-sm lg:text-base font-bold text-slate-900">200 ml</span>
+                                </button>
+                                <button onclick="addWater(330)" class="p-4 lg:p-6 bg-secondary-50 hover:bg-secondary-100 rounded-2xl lg:rounded-3xl transition-all group border border-secondary-100/50">
+                                    <div class="w-10 h-10 lg:w-12 lg:h-12 bg-white rounded-xl lg:rounded-2xl flex items-center justify-center text-secondary-500 shadow-sm mx-auto mb-2 lg:mb-3 group-hover:scale-110 transition-transform">
+                                        <i data-lucide="cup-soda" class="w-5 h-5 lg:w-6 lg:h-6"></i>
+                                    </div>
+                                    <span class="text-sm lg:text-base font-bold text-slate-900">330 ml</span>
+                                </button>
+                                <button onclick="addWater(500)" class="p-4 lg:p-6 bg-secondary-50 hover:bg-secondary-100 rounded-2xl lg:rounded-3xl transition-all group border border-secondary-100/50">
+                                    <div class="w-10 h-10 lg:w-12 lg:h-12 bg-white rounded-xl lg:rounded-2xl flex items-center justify-center text-secondary-500 shadow-sm mx-auto mb-2 lg:mb-3 group-hover:scale-110 transition-transform">
+                                        <i data-lucide="bottle-water" class="w-5 h-5 lg:w-6 lg:h-6"></i>
+                                    </div>
+                                    <span class="text-sm lg:text-base font-bold text-slate-900">500 ml</span>
+                                </button>
+                                <button onclick="undoWater()" class="p-4 lg:p-6 bg-amber-50 hover:bg-amber-100 rounded-2xl lg:rounded-3xl transition-all group border border-amber-200/50">
+                                    <div class="w-10 h-10 lg:w-12 lg:h-12 bg-white rounded-xl lg:rounded-2xl flex items-center justify-center text-amber-500 shadow-sm mx-auto mb-2 lg:mb-3 group-hover:scale-110 transition-transform">
+                                        <i data-lucide="undo-2" class="w-5 h-5 lg:w-6 lg:h-6"></i>
+                                    </div>
+                                    <span class="text-sm lg:text-base font-bold text-slate-900">Geri Al</span>
+                                </button>
+                                <button onclick="resetWater()" class="col-span-2 p-4 lg:p-6 bg-slate-50 hover:bg-slate-100 rounded-2xl lg:rounded-3xl transition-all group border border-slate-200/50">
+                                    <div class="w-10 h-10 lg:w-12 lg:h-12 bg-white rounded-xl lg:rounded-2xl flex items-center justify-center text-slate-500 shadow-sm mx-auto mb-2 lg:mb-3 group-hover:scale-110 transition-transform">
+                                        <i data-lucide="rotate-ccw" class="w-5 h-5 lg:w-6 lg:h-6"></i>
+                                    </div>
+                                    <span class="text-sm lg:text-base font-bold text-slate-900">Sıfırla</span>
+                                </button>
+                            </div>
+                            
+                            <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-4">
+                                <h4 class="text-sm font-black text-slate-900 flex items-center gap-2">
+                                    <i data-lucide="calendar-days" class="w-4 h-4 text-secondary-500"></i>
+                                    Bugünkü Plan
+                                </h4>
+                                <div id="water-plan-list" class="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-2">
+                                    <!-- Alarms will be listed here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Settings Section -->
+                <section id="settings-section" class="page-section space-y-8 pb-12">
+                    <div>
+                        <h2 class="text-4xl font-black text-slate-900">Ayarlar</h2>
+                        <p class="text-slate-500 mt-2">Uygulamayı kendine göre özelleştir ve verilerini yönet.</p>
+                    </div>
+                    <div class="grid grid-cols-1 gap-8">
+                        <section class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-8">
+                            <div class="flex items-center gap-3 text-slate-900">
+                                <i data-lucide="user" class="text-primary-500"></i>
+                                <h3 class="text-xl font-black">Profil ve Hedefler</h3>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="space-y-2">
+                                    <label class="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Kullanıcı Adı</label>
+                                    <input type="text" id="settings-name" onchange="saveSettings()" class="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all font-bold text-slate-700">
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Günlük Kalori Hedefi (kcal)</label>
+                                    <input type="number" id="settings-calorie-goal" onchange="saveSettings()" class="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all font-bold text-slate-700">
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Günlük Su Hedefi (ml)</label>
+                                    <input type="number" id="settings-water-goal" onchange="saveSettings()" class="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all font-bold text-slate-700">
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-8">
+                            <div class="flex items-center gap-3 text-slate-900">
+                                <i data-lucide="clock" class="text-secondary-500"></i>
+                                <h3 class="text-xl font-black">Su Takibi Planlama</h3>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div class="space-y-2">
+                                    <label class="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Uyanma Saati</label>
+                                    <input type="time" id="settings-wake-time" onchange="saveSettings()" class="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-secondary-500/10 focus:border-secondary-500 transition-all font-bold text-slate-700">
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Uyuma Saati</label>
+                                    <input type="time" id="settings-sleep-time" onchange="saveSettings()" class="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-secondary-500/10 focus:border-secondary-500 transition-all font-bold text-slate-700">
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Tek Seferlik İçim (ml)</label>
+                                    <input type="number" id="settings-water-sip" onchange="saveSettings()" placeholder="Örn: 500" class="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-secondary-500/10 focus:border-secondary-500 transition-all font-bold text-slate-700">
+                                </div>
+                            </div>
+                            <div class="p-4 bg-secondary-50 rounded-2xl border border-secondary-100">
+                                <p class="text-xs text-secondary-600 font-medium leading-relaxed">
+                                    <i data-lucide="info" class="inline-block w-3 h-3 mr-1"></i>
+                                    Planlama yapıldığında, içmeniz gereken su miktarı uyanık olduğunuz süreye bölünerek size hatırlatıcılar oluşturulur.
+                                </p>
+                            </div>
+                        </section>
+                        <section class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-8">
+                            <div class="flex items-center gap-3 text-slate-900">
+                                <i data-lucide="database" class="text-blue-500"></i>
+                                <h3 class="text-xl font-black">Veri Yönetimi</h3>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <button onclick="exportData()" class="flex items-center justify-between p-6 bg-slate-50 hover:bg-slate-100 rounded-3xl transition-all group">
+                                    <div class="flex items-center gap-4">
+                                        <div class="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-blue-500 shadow-sm group-hover:scale-110 transition-transform">
+                                            <i data-lucide="download"></i>
+                                        </div>
+                                        <div class="text-left">
+                                            <p class="font-bold text-slate-900">Verileri Dışa Aktar</p>
+                                        </div>
+                                    </div>
+                                </button>
+                                <button onclick="clearAllData()" class="flex items-center justify-between p-6 bg-red-50 hover:bg-red-100 rounded-3xl transition-all group">
+                                    <div class="flex items-center gap-4">
+                                        <div class="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-red-500 shadow-sm group-hover:scale-110 transition-transform">
+                                            <i data-lucide="trash-2"></i>
+                                        </div>
+                                        <div class="text-left">
+                                            <p class="font-bold text-slate-900 text-red-600">Tüm Geçmişi Sil</p>
+                                        </div>
+                                    </div>
+                                </button>
+                            </div>
+                        </section>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add Food Modal -->
+    <div id="add-food-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center lg:p-4 hidden">
+        <div class="modal-content bg-white w-full max-w-lg rounded-t-[2.5rem] lg:rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="p-6 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="text-xl font-black text-slate-900">Yemek Ekle</h3>
+                <button onclick="closeAddFoodModal()" class="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-all">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto custom-scrollbar">
+                <div class="flex p-1 bg-slate-100 rounded-2xl mb-6">
+                    <button onclick="setModalTab('search')" id="tab-search" class="flex-1 py-2.5 text-sm font-bold rounded-xl transition-all bg-white text-slate-900 shadow-sm">Seç</button>
+                    <button onclick="setModalTab('custom')" id="tab-custom" class="flex-1 py-2.5 text-sm font-bold rounded-xl transition-all text-slate-500">Özel</button>
+                </div>
+                <div id="modal-search-content" class="space-y-6">
+                    <div class="relative">
+                        <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                        <input type="text" id="modal-food-search" oninput="searchModalFoods()" placeholder="Yemek ara..." class="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all font-medium">
+                        <div id="modal-search-results" class="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-100 rounded-2xl shadow-xl z-10 overflow-hidden hidden max-h-60 overflow-y-auto"></div>
+                    </div>
+                    <div id="selected-food-info" class="hidden p-4 bg-primary-50 rounded-2xl border border-primary-100 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p id="selected-food-name" class="font-bold text-slate-900"></p>
+                                <p id="selected-food-cal" class="text-xs text-slate-500"></p>
+                            </div>
+                            <button onclick="clearSelectedFood()" class="text-slate-400 hover:text-red-500"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Miktar (gram)</label>
+                            <input type="number" id="food-grams" value="100" oninput="updateCalculatedCalories()" class="w-full px-4 py-3 bg-white border border-slate-100 rounded-xl focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all font-bold text-slate-700">
+                        </div>
+                        <div class="pt-2 border-t border-primary-100 flex items-center justify-between">
+                            <span class="text-sm font-bold text-primary-700">Toplam:</span>
+                            <span id="calculated-calories" class="text-xl font-black text-primary-600">0 kcal</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="modal-custom-content" class="space-y-4 hidden">
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Yemek Adı</label>
+                        <input type="text" id="custom-food-name" placeholder="Örn: Ev Yapımı Çorba" class="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Kalori (100g için)</label>
+                        <input type="number" id="custom-food-cal" placeholder="Örn: 150" class="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Kategori</label>
+                        <select id="custom-food-cat" class="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all font-bold text-slate-600">
+                            <option value="Ana Yemekler">Ana Yemekler</option>
+                            <option value="Kahvaltılık">Kahvaltılık</option>
+                            <option value="Meyveler">Meyveler</option>
+                            <option value="Sebzeler">Sebzeler</option>
+                            <option value="İçecekler">İçecekler</option>
+                            <option value="Tatlılar">Tatlılar</option>
+                            <option value="Atıştırmalık">Atıştırmalık</option>
+                            <option value="Yağlar & Soslar">Yağlar & Soslar</option>
+                        </select>
+                    </div>
+                </div>
+                <button onclick="submitAddFood()" class="w-full mt-8 py-4 bg-primary-500 hover:bg-primary-600 text-white font-bold rounded-2xl shadow-lg shadow-primary-500/30 transition-all flex items-center justify-center gap-2">
+                    <i data-lucide="plus"></i>
+                    Günlüğe Ekle
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const INITIAL_FOOD_DATABASE = [
+            { id: '1', name: 'Pirinç pilavı (tereyağlı)', category: 'Ana Yemekler', caloriesPer100g: 145 },
+            { id: '2', name: 'Bulgur pilavı', category: 'Ana Yemekler', caloriesPer100g: 114 },
+            { id: '3', name: 'Makarna (haşlanmış, sade)', category: 'Ana Yemekler', caloriesPer100g: 131 },
+            { id: '4', name: 'Mercimek çorbası', category: 'Ana Yemekler', caloriesPer100g: 58 },
+            { id: '5', name: 'Ezogelin çorbası', category: 'Ana Yemekler', caloriesPer100g: 62 },
+            { id: '6', name: 'Yayla çorbası', category: 'Ana Yemekler', caloriesPer100g: 55 },
+            { id: '7', name: 'Domates çorbası', category: 'Ana Yemekler', caloriesPer100g: 45 },
+            { id: '8', name: 'Tarhana çorbası', category: 'Ana Yemekler', caloriesPer100g: 52 },
+            { id: '9', name: 'Kuru fasulye (etli)', category: 'Ana Yemekler', caloriesPer100g: 137 },
+            { id: '10', name: 'Nohut yemeği (etli)', category: 'Ana Yemekler', caloriesPer100g: 155 },
+            { id: '11', name: 'Karnıyarık', category: 'Ana Yemekler', caloriesPer100g: 138 },
+            { id: '12', name: 'Lahmacun', category: 'Ana Yemekler', caloriesPer100g: 235 },
+            { id: '13', name: 'Yumurta (haşlanmış)', category: 'Kahvaltılık', caloriesPer100g: 155 },
+            { id: '14', name: 'Beyaz peynir', category: 'Kahvaltılık', caloriesPer100g: 264 },
+            { id: '15', name: 'Simit', category: 'Kahvaltılık', caloriesPer100g: 310 },
+            { id: '16', name: 'Elma', category: 'Meyveler', caloriesPer100g: 52 },
+            { id: '17', name: 'Muz', category: 'Meyveler', caloriesPer100g: 89 },
+            { id: '18', name: 'Domates', category: 'Sebzeler', caloriesPer100g: 18 },
+            { id: '19', name: 'Salatalık', category: 'Sebzeler', caloriesPer100g: 16 },
+            { id: '20', name: 'Ayran', category: 'İçecekler', caloriesPer100g: 38 },
+            { id: '21', name: 'Baklava', category: 'Tatlılar', caloriesPer100g: 428 },
+            { id: '22', name: 'Ceviz', category: 'Atıştırmalık', caloriesPer100g: 654 }
+        ];
+
+        let foods = JSON.parse(localStorage.getItem('foods')) || INITIAL_FOOD_DATABASE;
+        let settings = JSON.parse(localStorage.getItem('settings')) || { 
+            name: 'Kullanıcı', 
+            calorieGoal: 2000, 
+            waterGoal: 2000,
+            wakeTime: '08:00',
+            sleepTime: '23:00',
+            waterSipAmount: 500
+        };
+        let history = JSON.parse(localStorage.getItem('history')) || [];
+        let dailyData = JSON.parse(localStorage.getItem('dailyData')) || { 
+            date: new Date().toISOString().split('T')[0], 
+            foodLog: [], 
+            waterIntake: 0,
+            waterAlarms: [],
+            waterHistory: []
+        };
+
+        const today = new Date().toISOString().split('T')[0];
+        if (dailyData.date !== today) {
+            history.unshift(dailyData);
+            localStorage.setItem('history', JSON.stringify(history));
+            dailyData = { date: today, foodLog: [], waterIntake: 0, waterAlarms: [], waterHistory: [] };
+            localStorage.setItem('dailyData', JSON.stringify(dailyData));
+        }
+
+        function navigateTo(page) {
+            document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+            document.getElementById(`${page}-section`).classList.add('active');
+            
+            // Desktop Nav
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('bg-primary-50', 'text-primary-600', 'font-medium'));
+            const desktopLink = document.getElementById(`nav-${page}`);
+            if (desktopLink) desktopLink.classList.add('bg-primary-50', 'text-primary-600', 'font-medium');
+
+            // Mobile Nav
+            document.querySelectorAll('.mobile-nav-link').forEach(l => l.classList.remove('text-primary-600'));
+            const mobileLink = document.getElementById(`mobile-nav-${page}`);
+            if (mobileLink) mobileLink.classList.add('text-primary-600');
+
+            updateUI();
+            if (page === 'history') renderHistoryChart();
+            if (page === 'foods') renderFoodList();
+            if (page === 'settings') loadSettingsToUI();
+            
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function updateUI() {
+            document.getElementById('user-name-display').textContent = settings.name;
+            document.getElementById('hero-name').textContent = settings.name;
+            document.getElementById('hero-goal').textContent = settings.calorieGoal;
+            document.getElementById('calorie-goal-display').textContent = settings.calorieGoal;
+            
+            const waterGoalDisplay = document.getElementById('water-goal-display');
+            if (waterGoalDisplay) waterGoalDisplay.textContent = settings.waterGoal;
+            
+            const totalCalories = dailyData.foodLog.reduce((sum, entry) => sum + entry.calories, 0);
+            document.getElementById('calories-taken').textContent = totalCalories;
+            document.getElementById('calories-remaining').textContent = Math.max(0, settings.calorieGoal - totalCalories);
+            
+            const circle = document.getElementById('calorie-progress-circle');
+            const percentage = Math.min(100, (totalCalories / settings.calorieGoal) * 100);
+            // Circle radius is 42 (from viewBox 100x100), circumference is 2 * PI * 42 ≈ 263.9
+            const circumference = 2 * Math.PI * 42; 
+            circle.style.strokeDasharray = circumference;
+            circle.style.strokeDashoffset = circumference - (circumference * percentage) / 100;
+            
+            const waterPercentage = Math.min(100, (dailyData.waterIntake / settings.waterGoal) * 100);
+            const waterWave = document.getElementById('water-wave');
+            if (waterWave) waterWave.style.height = `${waterPercentage}%`;
+            
+            const waterPercentageDisplay = document.getElementById('water-percentage');
+            if (waterPercentageDisplay) waterPercentageDisplay.textContent = `${Math.round(waterPercentage)}%`;
+            
+            const waterIntakeDisplay = document.getElementById('water-intake-display');
+            if (waterIntakeDisplay) waterIntakeDisplay.textContent = dailyData.waterIntake;
+
+            const waterTakenDisplay = document.getElementById('water-taken');
+            if (waterTakenDisplay) waterTakenDisplay.textContent = dailyData.waterIntake;
+
+            // Water Alarms UI
+            updateWaterAlarmsUI();
+
+            renderTodayFoodList();
+            lucide.createIcons();
+        }
+
+        function calculateWaterAlarms() {
+            const remainingWater = Math.max(0, settings.waterGoal - dailyData.waterIntake);
+            if (remainingWater <= 0) {
+                dailyData.waterAlarms = [];
+                localStorage.setItem('dailyData', JSON.stringify(dailyData));
+                return;
+            }
+
+            const sipCount = Math.ceil(remainingWater / (settings.waterSipAmount || 500));
+            const now = new Date();
+            const [sleepH, sleepM] = settings.sleepTime.split(':').map(Number);
+            const sleepDate = new Date();
+            sleepDate.setHours(sleepH, sleepM, 0, 0);
+
+            // If sleep time is earlier than now, it's likely for the next day (but we only plan for today)
+            if (sleepDate < now) {
+                dailyData.waterAlarms = [];
+                localStorage.setItem('dailyData', JSON.stringify(dailyData));
+                return;
+            }
+
+            const remainingMinutes = (sleepDate - now) / (1000 * 60);
+            if (remainingMinutes <= 0 || sipCount <= 0) {
+                dailyData.waterAlarms = [];
+                localStorage.setItem('dailyData', JSON.stringify(dailyData));
+                return;
+            }
+
+            const interval = remainingMinutes / sipCount;
+            const alarms = [];
+            for (let i = 1; i <= sipCount; i++) {
+                const alarmTime = new Date(now.getTime() + (interval * i * 60 * 1000));
+                alarms.push(alarmTime.toTimeString().slice(0, 5));
+            }
+
+            dailyData.waterAlarms = alarms;
+            localStorage.setItem('dailyData', JSON.stringify(dailyData));
+        }
+
+        function updateWaterAlarmsUI() {
+            const container = document.getElementById('next-water-alarm-container');
+            const timeSpan = document.getElementById('next-water-alarm-time');
+            const planList = document.getElementById('water-plan-list');
+            
+            if (!dailyData.waterAlarms || dailyData.waterAlarms.length === 0) {
+                if (container) container.classList.add('hidden');
+                if (planList) planList.innerHTML = `<p class="text-xs text-slate-400 italic">Planlanmış alarm bulunmuyor.</p>`;
+                return;
+            }
+
+            const nowStr = new Date().toTimeString().slice(0, 5);
+            const nextAlarm = dailyData.waterAlarms.find(a => a > nowStr);
+
+            if (nextAlarm) {
+                if (container) {
+                    container.classList.remove('hidden');
+                    container.classList.add('flex');
+                    timeSpan.textContent = nextAlarm;
+                }
+            } else {
+                if (container) container.classList.add('hidden');
+            }
+
+            if (planList) {
+                planList.innerHTML = dailyData.waterAlarms.map(alarm => `
+                    <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100 ${alarm < nowStr ? 'opacity-40' : ''}">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-secondary-500 shadow-sm">
+                                <i data-lucide="bell" style="width:14px;height:14px"></i>
+                            </div>
+                            <span class="text-sm font-bold text-slate-700">${alarm}</span>
+                        </div>
+                        <span class="text-[10px] font-bold ${alarm < nowStr ? 'text-slate-400' : 'text-secondary-600'} uppercase tracking-wider">
+                            ${alarm < nowStr ? 'Geçti' : 'Bekliyor'}
+                        </span>
+                    </div>
+                `).join('');
+                lucide.createIcons();
+            }
+        }
+
+        // Check for alarms every minute
+        setInterval(() => {
+            if (!dailyData.waterAlarms) return;
+            const nowStr = new Date().toTimeString().slice(0, 5);
+            const alarmIndex = dailyData.waterAlarms.indexOf(nowStr);
+            if (alarmIndex !== -1) {
+                showNotification("Su Vakti!", `${settings.waterSipAmount}ml su içme zamanın geldi.`);
+                // Remove this alarm so it doesn't trigger again in the same minute
+                dailyData.waterAlarms.splice(alarmIndex, 1);
+                localStorage.setItem('dailyData', JSON.stringify(dailyData));
+                updateWaterAlarmsUI();
+            }
+        }, 60000);
+
+        function showNotification(title, body) {
+            // Browser Notification
+            if ("Notification" in window && Notification.permission === "granted") {
+                new Notification(title, { body });
+            } else if ("Notification" in window && Notification.permission !== "denied") {
+                Notification.requestPermission();
+            }
+
+            // In-app Notification (Toast)
+            const toast = document.createElement('div');
+            toast.className = 'fixed top-4 left-1/2 -translate-x-1/2 z-[200] bg-secondary-600 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-bounce';
+            toast.innerHTML = `<i data-lucide="droplets"></i><div><p class="font-black">${title}</p><p class="text-xs opacity-90">${body}</p></div>`;
+            document.body.appendChild(toast);
+            lucide.createIcons();
+            setTimeout(() => toast.remove(), 5000);
+        }
+
+        function renderTodayFoodList() {
+            const list = document.getElementById('today-food-list');
+            if (dailyData.foodLog.length === 0) {
+                list.innerHTML = `<div class="p-12 text-center text-slate-400"><p>Henüz yemek eklenmedi</p></div>`;
+            } else {
+                list.innerHTML = dailyData.foodLog.map(entry => `
+                    <div class="p-6 flex items-center justify-between hover:bg-slate-50">
+                        <div><p class="font-bold">${entry.name}</p><p class="text-xs text-slate-500">${entry.grams}g</p></div>
+                        <div class="flex items-center gap-4"><span class="font-black">${entry.calories} kcal</span>
+                        <button onclick="removeFoodFromLog('${entry.id}')" class="text-red-400 hover:text-red-600"><i data-lucide="trash-2" style="width:18px;height:18px"></i></button></div>
+                    </div>`).join('');
+            }
+        }
+
+        function renderFoodList() {
+            const search = document.getElementById('food-search').value.toLowerCase();
+            const category = document.getElementById('food-category-filter').value;
+            const filtered = foods.filter(f => (f.name.toLowerCase().includes(search)) && (category === 'all' || f.category === category));
+            
+            // Desktop Table
+            const listDesktop = document.getElementById('food-database-list-desktop');
+            if (listDesktop) {
+                listDesktop.innerHTML = filtered.map(food => `
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-8 py-5 font-bold text-slate-700">${food.name}</td>
+                        <td class="px-8 py-5 text-xs text-slate-500">${food.category}</td>
+                        <td class="px-8 py-5 font-black text-slate-900">${food.caloriesPer100g} kcal</td>
+                        <td class="px-8 py-5 text-right">
+                            <button onclick="quickAddFood('${food.id}')" class="px-4 py-2 bg-primary-50 text-primary-600 hover:bg-primary-100 rounded-xl font-bold transition-colors">Ekle</button>
+                        </td>
+                    </tr>`).join('');
+            }
+
+            // Mobile Cards
+            const listMobile = document.getElementById('food-database-list-mobile');
+            if (listMobile) {
+                if (filtered.length === 0) {
+                    listMobile.innerHTML = `<div class="p-12 text-center text-slate-400"><p>Yemek bulunamadı</p></div>`;
+                } else {
+                    listMobile.innerHTML = filtered.map(food => `
+                        <div class="p-5 flex items-center justify-between active:bg-slate-50 transition-colors">
+                            <div class="space-y-1">
+                                <p class="font-bold text-slate-800">${food.name}</p>
+                                <div class="flex items-center gap-2">
+                                    <span class="px-2 py-0.5 bg-slate-100 text-[10px] font-bold text-slate-500 rounded-md uppercase">${food.category}</span>
+                                    <span class="text-xs font-black text-primary-600">${food.caloriesPer100g} kcal / 100g</span>
+                                </div>
+                            </div>
+                            <button onclick="quickAddFood('${food.id}')" class="w-10 h-10 bg-primary-50 text-primary-600 rounded-xl flex items-center justify-center active:scale-90 transition-transform">
+                                <i data-lucide="plus" class="w-5 h-5"></i>
+                            </button>
+                        </div>`).join('');
+                }
+            }
+            lucide.createIcons();
+        }
+
+        function quickAddFood(id) {
+            const food = foods.find(f => f.id === id);
+            if (food) {
+                dailyData.foodLog.unshift({ id: Math.random().toString(36).substr(2, 9), name: food.name, grams: 100, calories: food.caloriesPer100g, timestamp: Date.now() });
+                localStorage.setItem('dailyData', JSON.stringify(dailyData));
+                updateUI();
+            }
+        }
+
+        function removeFoodFromLog(id) {
+            dailyData.foodLog = dailyData.foodLog.filter(e => e.id !== id);
+            localStorage.setItem('dailyData', JSON.stringify(dailyData));
+            updateUI();
+        }
+
+        function addWater(amount) {
+            dailyData.waterIntake += amount;
+            if (!dailyData.waterHistory) dailyData.waterHistory = [];
+            dailyData.waterHistory.push(amount);
+            localStorage.setItem('dailyData', JSON.stringify(dailyData));
+            calculateWaterAlarms();
+            updateUI();
+        }
+
+        function undoWater() {
+            if (!dailyData.waterHistory || dailyData.waterHistory.length === 0) {
+                showNotification("Geri Alınacak Veri Yok", "Henüz su girişi yapmadınız.");
+                return;
+            }
+            const lastAmount = dailyData.waterHistory.pop();
+            dailyData.waterIntake = Math.max(0, dailyData.waterIntake - lastAmount);
+            localStorage.setItem('dailyData', JSON.stringify(dailyData));
+            calculateWaterAlarms();
+            updateUI();
+            showNotification("Geri Alındı", `${lastAmount}ml su girişi geri alındı.`);
+        }
+
+        function resetWater() {
+            if (!confirm('Bugünkü su verilerini sıfırlamak istediğine emin misin?')) return;
+            dailyData.waterIntake = 0;
+            dailyData.waterHistory = [];
+            localStorage.setItem('dailyData', JSON.stringify(dailyData));
+            calculateWaterAlarms();
+            updateUI();
+        }
+
+        let selectedFood = null;
+        let activeModalTab = 'search';
+        function openAddFoodModal() { document.getElementById('add-food-modal').classList.remove('hidden'); setModalTab('search'); clearSelectedFood(); }
+        function closeAddFoodModal() { document.getElementById('add-food-modal').classList.add('hidden'); }
+        function setModalTab(tab) {
+            activeModalTab = tab;
+            document.getElementById('tab-search').className = tab === 'search' ? 'flex-1 py-2.5 text-sm font-bold rounded-xl bg-white text-slate-900 shadow-sm' : 'flex-1 py-2.5 text-sm font-bold rounded-xl text-slate-500';
+            document.getElementById('tab-custom').className = tab === 'custom' ? 'flex-1 py-2.5 text-sm font-bold rounded-xl bg-white text-slate-900 shadow-sm' : 'flex-1 py-2.5 text-sm font-bold rounded-xl text-slate-500';
+            document.getElementById('modal-search-content').classList.toggle('hidden', tab !== 'search');
+            document.getElementById('modal-custom-content').classList.toggle('hidden', tab !== 'custom');
+        }
+
+        function searchModalFoods() {
+            const query = document.getElementById('modal-food-search').value.toLowerCase();
+            const resultsDiv = document.getElementById('modal-search-results');
+            if (!query) { resultsDiv.classList.add('hidden'); return; }
+            const filtered = foods.filter(f => f.name.toLowerCase().includes(query)).slice(0, 5);
+            resultsDiv.innerHTML = filtered.map(food => `<button onclick="selectFood('${food.id}')" class="w-full px-4 py-3 text-left hover:bg-primary-50 font-medium">${food.name}</button>`).join('');
+            resultsDiv.classList.toggle('hidden', filtered.length === 0);
+        }
+
+        function selectFood(id) {
+            selectedFood = foods.find(f => f.id === id);
+            document.getElementById('modal-food-search').value = selectedFood.name;
+            document.getElementById('modal-search-results').classList.add('hidden');
+            document.getElementById('selected-food-info').classList.remove('hidden');
+            document.getElementById('selected-food-name').textContent = selectedFood.name;
+            document.getElementById('selected-food-cal').textContent = `100g / ${selectedFood.caloriesPer100g} kcal`;
+            updateCalculatedCalories();
+        }
+
+        function clearSelectedFood() { selectedFood = null; document.getElementById('selected-food-info').classList.add('hidden'); }
+        function updateCalculatedCalories() {
+            if (!selectedFood) return;
+            const grams = document.getElementById('food-grams').value;
+            document.getElementById('calculated-calories').textContent = `${Math.round((selectedFood.caloriesPer100g * grams) / 100)} kcal`;
+        }
+
+        function submitAddFood() {
+            if (activeModalTab === 'search') {
+                if (selectedFood) quickAddFood(selectedFood.id);
+            } else {
+                const name = document.getElementById('custom-food-name').value;
+                const cal = document.getElementById('custom-food-cal').value;
+                if (name && cal) {
+                    const food = { id: Math.random().toString(36).substr(2, 9), name, caloriesPer100g: parseInt(cal), category: document.getElementById('custom-food-cat').value };
+                    foods.unshift(food);
+                    localStorage.setItem('foods', JSON.stringify(foods));
+                    quickAddFood(food.id);
+                }
+            }
+            closeAddFoodModal();
+        }
+
+        let historyChart = null;
+        function renderHistoryChart() {
+            const ctx = document.getElementById('historyChart').getContext('2d');
+            if (historyChart) historyChart.destroy();
+            const last7 = [...history, dailyData].slice(-7);
+            historyChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: last7.map(d => new Date(d.date).toLocaleDateString('tr-TR', { weekday: 'short' })),
+                    datasets: [{ label: 'Kalori', data: last7.map(d => d.foodLog.reduce((s, e) => s + e.calories, 0)), backgroundColor: '#22c55e', borderRadius: 8 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+            document.getElementById('avg-calories').textContent = Math.round(last7.reduce((a, b) => a + b.foodLog.reduce((s, e) => s + e.calories, 0), 0) / last7.length);
+            document.getElementById('total-records').textContent = history.length + 1;
+        }
+
+        function loadSettingsToUI() {
+            document.getElementById('settings-name').value = settings.name;
+            document.getElementById('settings-calorie-goal').value = settings.calorieGoal;
+            document.getElementById('settings-water-goal').value = settings.waterGoal;
+            document.getElementById('settings-wake-time').value = settings.wakeTime || '08:00';
+            document.getElementById('settings-sleep-time').value = settings.sleepTime || '23:00';
+            document.getElementById('settings-water-sip').value = settings.waterSipAmount || 500;
+        }
+
+        function saveSettings() {
+            settings.name = document.getElementById('settings-name').value;
+            settings.calorieGoal = parseInt(document.getElementById('settings-calorie-goal').value);
+            settings.waterGoal = parseInt(document.getElementById('settings-water-goal').value);
+            settings.wakeTime = document.getElementById('settings-wake-time').value;
+            settings.sleepTime = document.getElementById('settings-sleep-time').value;
+            settings.waterSipAmount = parseInt(document.getElementById('settings-water-sip').value);
+            localStorage.setItem('settings', JSON.stringify(settings));
+            
+            if ("Notification" in window && Notification.permission === "default") {
+                Notification.requestPermission();
+            }
+            
+            calculateWaterAlarms();
+            updateUI();
+            showNotification("Ayarlar Kaydedildi", "Su planın güncellendi.");
+        }
+
+        function exportData() {
+            const blob = new Blob([JSON.stringify({ foods, settings, history, dailyData }, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'kaloritakip-yedek.json';
+            a.click();
+        }
+
+        function clearAllData() { if (confirm('Tüm veriler silinecek?')) { localStorage.clear(); location.reload(); } }
+
+        window.onload = () => { 
+            lucide.createIcons(); 
+            if ("Notification" in window && Notification.permission === "default") {
+                Notification.requestPermission();
+            }
+            if (!dailyData.waterAlarms || dailyData.waterAlarms.length === 0) {
+                calculateWaterAlarms();
+            }
+            updateUI();
+            navigateTo('dashboard');
+        };
+    </script>
+</body>
+</html>
